@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <title>Document</title>
+</head>
+<body>
+    <style>
+        body {
+            margin-top: 30px;
+        }
+    </style>
+    <div class="container text-center">
+        <input type="file" class="btn btn-outline-success" id="fileUpload" hidden/>
+        <button type="button" class="btn btn-outline-info btn default" id="chooseFile">
+            Choose file
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-default" id="upload">
+            Upload file
+        </button>
+    </div><hr />
+    <div id="dvExcel"></div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    
+    <!-- Begin import excel file reader library -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.13.5/xlsx.full.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.13.5/jszip.js"></script>
+    <script src="https://www.jqueryscript.net/demo/Export-Html-Table-To-Excel-Spreadsheet-using-jQuery-table2excel/src/jquery.table2excel.js"></script>
+    <script src="https://www.jqueryscript.net/demo/Merge-Cells-In-Table-jQuery/table-merger.js"></script>
+    <!-- End import excel file reader library -->
+
+    <script>
+        $(document).ready(function () {
+            var gNewData = [];
+
+            $('button#chooseFile.btn').click(function (e) { 
+               $('input#fileUpload').click();
+            });
+
+            $('input[type="file"]').change(function(e){
+                var fileName = e.target.files[0].name;
+                $('div#dvExcel').append(`<div class="container-fluid text-center">
+                                            <h3 class="font-weight-bold">
+                                                The <a href="#" class="text-primary">`+ fileName +`</a> had been uploaded
+                                            </h3>
+                                        </div>`);
+            });
+
+
+            $("body").on("click", "#upload", function () {
+                //Reference the FileUpload element.
+                var fileUpload = $("#fileUpload")[0];
+
+                //Validate whether File is valid Excel file.
+                var regex = /^([a-zA-Z0-9\s_\\.\-:])+(.xls|.xlsx)$/;
+                // if (regex.test(fileUpload.value.toLowerCase())) {
+                    if (typeof (FileReader) != "undefined") {
+                        var reader = new FileReader();
+        
+                        //For Browsers other than IE.
+                        if (reader.readAsBinaryString) {
+                            reader.onload = function (e) {
+                                ProcessExcel(e.target.result);
+                            };
+                            reader.readAsBinaryString(fileUpload.files[0]);
+                        } else {
+                            //For IE Browser.
+                            reader.onload = function (e) {
+                                var data = "";
+                                var bytes = new Uint8Array(e.target.result);
+                                for (var i = 0; i < bytes.byteLength; i++) {
+                                    data += String.fromCharCode(bytes[i]);
+                                }
+
+                                ProcessExcel(data);
+                            };
+                            reader.readAsArrayBuffer(fileUpload.files[0]);
+                        }
+                    } else {
+                        alert("This browser does not support HTML5.");
+                    }
+                // } else {
+                //     alert("Please upload a valid Excel file.");
+                // }
+            });
+
+            function ProcessExcel(data) {
+                
+                //Read the Excel File data.
+                var workbook = XLSX.read(data, {
+                    type: 'binary'
+                });
+        
+                //Fetch the name of First Sheet.
+                var firstSheet = workbook.SheetNames[0];
+        
+                //Read all rows from First Sheet into an JSON array.
+                var excelRows = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[firstSheet]);
+
+                Object.size = function(obj) {
+                    var size = 0, key;
+                    for (key in obj) {
+                        if (obj.hasOwnProperty(key)) size++;
+                    }
+                    return size;
+                };
+
+                for (let i = 0; i < excelRows.length; i++) {
+                    if(Object.size(excelRows[i]) > 5) {
+                        var newRow = {
+                            "BOLETA N°": excelRows[i]["Serie"] + excelRows[i]["Número"],
+                            "DETALLE DE OBJETO": excelRows[i]["Adenda"],
+                            "FECHA": excelRows[i]["Fecha de comprobante"],
+                            "PRECIO PAGADO": excelRows[i]["Tipo de moneda"] + excelRows[i]["Monto total a pagar"],
+                            "NOMBRES Y APELLIDOS": excelRows[i]["Razón social del receptor"],
+                            "DOMICILIO / N°": excelRows[i]["Dirección del receptor"] + "," + excelRows[i]["Ciudad del receptor"] + "," + excelRows[i]["Departamento del receptor"],
+                            "DOCUMENTO": excelRows[i]["Documento del receptor"]
+                        };
+                        
+                        gNewData.push(newRow);
+                    }
+                }
+
+                //Create a HTML Table element.
+                var table = $("<table class='table table-hover text-center' id='dataTable'/>");
+                
+                table[0].border = "1";
+                table.append(`<tr>
+                                <td class="font-weight-bold" colspan="2">
+                                    <h1>
+                                    Departamento de Contralor Social 
+                                    </h1>
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+
+                            <tr>
+                                <td></td>
+                                <td class="font-weight-bold">
+                                    <h4>
+                                    Jefatura  V  Especializada
+                                    </h4>
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+
+                            <tr>
+                                <td></td>
+                                <td>
+                                    <h4>
+                                    Carlos Quijano 1310 Tel- 152 2731  CP 11100
+                                    </h4>
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold" colspan="3">
+                                    <h3>
+                                    E-mail: dit-compraventa.montevideo@minterior.gub.uy
+                                    </h3>
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td class="font-weight-bold text-center" colspan="4">
+                                    <h1>
+                                    DECLARACION DE COMPRA VENTA
+                                    </h1>
+                                </td>  
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+
+                            <tr>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td class="font-weight-bold">
+                                    <h1>
+                                    1158
+                                    </h1>
+                                </td>
+                                <td></td>
+                            </tr>
+
+                            <tr>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td>COMERCIO:</td> 
+                                <td>RUBRO: Joyería y Anticuario</td>
+                                <td></td>
+                                <td>DIRECCION: Sarandí 635</td>
+                                <td></td>
+                                <td></td>
+                            </tr>`);
+
+                //Add the header row.
+                var row = $(table[0].insertRow(-1));
+                
+                //Add the header cells.
+                var headerCell = $("<th />");
+                headerCell.html("BOLETA N°");
+                row.append(headerCell);
+        
+                var headerCell = $("<th />");
+                headerCell.html("DETALLE DE OBJETO");
+                row.append(headerCell);
+        
+                var headerCell = $("<th />");
+                headerCell.html("FECHA");
+                row.append(headerCell);
+
+                var headerCell = $("<th />");
+                headerCell.html("PRECIO PAGADO");
+                row.append(headerCell);
+        
+                var headerCell = $("<th />");
+                headerCell.html("NOMBRES Y APELLIDOS");
+                row.append(headerCell);
+        
+                var headerCell = $("<th />");
+                headerCell.html("DOMICILIO / N°");
+                row.append(headerCell);
+
+                var headerCell = $("<th />");
+                headerCell.html("DOCUMENTO");
+                row.append(headerCell);
+                
+                //Add the data rows from Excel file.
+                for (var i = 0; i < gNewData.length; i++) {
+                    //Add the data row.
+                    var row = $(table[0].insertRow(-1));
+                            
+                    //Add the data cells.
+                    var cell = $("<td />");
+                    cell.html(gNewData[i]["BOLETA N°"]);
+                    row.append(cell);
+
+                    var cell = $("<td />");
+                    cell.html(gNewData[i]["DETALLE DE OBJETO"]);
+                    row.append(cell);
+
+                    var cell = $("<td />");
+                    cell.html(gNewData[i]["FECHA"]);
+                    row.append(cell);
+
+                    var cell = $("<td />");
+                    cell.html(gNewData[i]["PRECIO PAGADO"]);
+                    row.append(cell);
+
+                    var cell = $("<td />");
+                    cell.html(gNewData[i]["NOMBRES Y APELLIDOS"]);
+                    row.append(cell);
+
+                    var cell = $("<td />");
+                    cell.html(gNewData[i]["DOMICILIO / N°"]);
+                    row.append(cell);
+
+                    var cell = $("<td />");
+                    cell.html(gNewData[i]["DOCUMENTO"]);
+                    row.append(cell);
+                }
+                
+                var dvExcel = $("#dvExcel");
+                dvExcel.html("");
+                dvExcel.append(table);
+                $('table#dataTable').attr('hidden', 'true');
+
+                $("div#dvExcel").table2excel({
+                    // exclude CSS class
+                    exclude: ".noExl",
+                    name: "Worksheet Name",
+                    filename: "output", //do not include extension
+                    fileext: ".xls" // file extension
+                });
+                setTimeout(() => {
+                    location.reload();    
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
